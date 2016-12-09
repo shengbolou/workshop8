@@ -185,6 +185,15 @@ export function login(email, password, cb) {
  * Signs the user up for a Facebook account.
  * We will fill this in later on in the workshop.
  */
-export function signup(email, fullName, password, cb) {
-  
-}
+ export function signup(email, fullName, password, cb) {
+   sendXHR('POST', '/user', { fullName: fullName,
+                              email: email,
+                              password: password }, () => {
+     // Called when signup succeeds! Return true for success.
+     cb(true);
+   }, () => {
+     // Called when the server returns an error code!
+     // Return false for failure.
+     cb(false);
+   });
+ }

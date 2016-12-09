@@ -6,6 +6,7 @@ var app = express();
 var bodyParser = require('body-parser');
 var StatusUpdateSchema = require('./schemas/statusupdate.json');
 var CommentSchema = require('./schemas/comment.json');
+var UserSchema = require('./schemas/user.json');
 var validate = require('express-jsonschema').validate;
 var mongo_express = require('mongo-express/lib/middleware');
 // Use default Mongo Express configuration
@@ -14,6 +15,7 @@ var MongoClient = require('mongodb').MongoClient;
 var ObjectID = require('mongodb').ObjectID;
 var ResetDatabase = require('./resetdatabase');
 var url = 'mongodb://localhost:27017/facebook';
+var bcrypt = require('bcryptjs');
 
 /**
  * Strips a password from a user object.
@@ -30,6 +32,84 @@ MongoClient.connect(url, function(err, db) {
   app.use(bodyParser.json());
   app.use(express.static('../client/build'));
   app.use('/mongo_express', mongo_express(mongo_express_config));
+
+  /**
+  * Create a user account.
+  */
+  app.post('/user', validate({ body: UserSchema }),
+  function(req, res) {
+    var user = req.body;
+    var password = user.password;
+    // Standardize the email to be lower-cased and free of
+    // extraneous whitespace. A production server would
+    // actually check that the email is formatted
+    // properly, and would send a verification email!
+    user.email = user.email.trim().toLowerCase();
+    if (password.length < 5) {
+      // Bad request
+      return res.status(400).end();
+    }
+
+    // bcrypt.hash will generate a salt for us and
+    // hash the password with the salt
+    bcrypt.hash(password, 10, function(err, hash) {
+      if (err) {
+        // bcrypt had some sort of error!
+        res.status(500).end();
+      } else {
+        // hash contains **both the hash and the salt**
+        // concatenated together. Now, we can store
+        // this into the database!
+
+        // Put database query here
+
+        // Replace the plaintext password with the
+        // salt+hash string that bcrypt gave us.
+        user.password = hash;
+        // Create a new user
+        db.collection('users').insertOne(user, function(err, result) {
+          if (err) {
+            // This will happen if there's already a
+            // user with the same email address.
+            return sendDatabaseError(res, err);
+          }
+          var userId = result.insertedId;
+          // Create the user's feed.
+          db.collection('feeds').insertOne({
+            contents: []
+          }, function(err, result) {
+            if (err) {
+              // In a production app, we'd probably
+              // also want to remove the user
+              // we just created if this fails.
+              return sendDatabaseError(res, err);
+            }
+
+            // Update the user document with the new feed's ID.
+            var feedId = result.insertedId;
+            // Set the reference for the user's feed.
+            db.collection('users').updateOne({
+              _id: userId
+            }, {
+              $set: {
+                feed: feedId
+              }
+            }, function(err) {
+              if (err) {
+                return sendDatabaseError(res, err);
+              }
+              // Send a blank response to indicate success!
+              res.send();
+            })
+          });
+        });
+
+      }
+    });
+
+
+  });
+
 
   /**
    * Resolves a list of user objects. Returns an object that maps user IDs to
@@ -710,4 +790,5 @@ MongoClient.connect(url, function(err, db) {
   app.listen(3000, function () {
     console.log('Example app listening on port 3000!');
   });
+
 });
