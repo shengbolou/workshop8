@@ -1,4 +1,4 @@
-import {getToken} from './credentials';
+import {getToken,updateCredentials} from './credentials';
 
 /**
  * Properly configure+send an XMLHttpRequest with error handling, authorization token,
@@ -178,7 +178,17 @@ export function searchForFeedItems(queryText, cb) {
  * We will fill this in later on in the workshop.
  */
 export function login(email, password, cb) {
-
+  sendXHR('POST', '/login', { email: email, password: password},
+  (xhr) => {
+    // Success callback: Login succeeded.
+    var authData = JSON.parse(xhr.responseText);
+    // Update credentials and indicate success via the callback!
+    updateCredentials(authData.user, authData.token);
+    cb(true);
+  }, () => {
+    // Error callback: Login failed.
+    cb(false);
+  });
 }
 
 /**

@@ -7,8 +7,11 @@ var bodyParser = require('body-parser');
 var StatusUpdateSchema = require('./schemas/statusupdate.json');
 var CommentSchema = require('./schemas/comment.json');
 var UserSchema = require('./schemas/user.json');
+var LoginSchema = require('./schemas/login.json');
 var validate = require('express-jsonschema').validate;
 var mongo_express = require('mongo-express/lib/middleware');
+var jwt = require('jsonwebtoken');
+var secretKey = "7d672134-7365-40d8-acd6-ca6a82728471";
 // Use default Mongo Express configuration
 var mongo_express_config = require('mongo-express/config.default.js');
 var MongoClient = require('mongodb').MongoClient;
@@ -108,6 +111,67 @@ MongoClient.connect(url, function(err, db) {
     });
 
 
+  });
+
+  app.post('/login', validate({ body: LoginSchema }),
+  function(req, res) {
+    var loginData = req.body;
+    var pw = loginData.password;
+
+    // Get the user with the given email address.
+    // Standardize the email address before searching.
+    var email = loginData.email.trim().toLowerCase();
+    db.collection('users').findOne({ email: email },
+      function(err, user) {
+        if (err) {
+          sendDatabaseError(res, err);
+        } else if (user === null) {
+          // No user found with given email address.
+          // 401 Unauthorized is the correct code to use in this case.
+          res.status(401).end();
+        } else {
+          // User found!
+
+          // Now we can check the password here...
+          // Use bcrypt to check the password against the
+          // recorded hash and salt. Note that user.password
+          // in the database contains a string with both the
+          // hash and salt -- this is why bcrypt is incredibly
+          // easy to use!
+          bcrypt.compare(pw, user.password, function(err, success) {
+            if (err) {
+              // An internal error occurred. This could only possibly
+              // happen if the recorded hash+salt in the database is
+              // malformed, or bcryptjs has a bug.
+              res.status(500).end();
+            } else if (success) {
+              // Successful login!
+
+              // PUT CODE TO GENERATE JSON WEB TOKEN HERE
+              // Successful login!
+              // Create a token that is valid for a week.
+              jwt.sign({
+                id: user._id
+              }, secretKey, { expiresIn: "7 days" },
+              function(token) {
+                // We have the token.
+                // Remove the 'password' field from the user
+                // document before sending it to the client.
+                stripPassword(user);
+                // Send the user document and the token to the client.
+                res.send({
+                  user: user,
+                  token: token
+                });
+              });
+
+            } else {
+              // Invalid password; 'success' was false.
+              res.status(401).end();
+            }
+          })
+        }
+      });
   });
 
 
@@ -259,22 +323,24 @@ MongoClient.connect(url, function(err, db) {
   }
 
   /**
-   * Get the user ID from a token. Returns "" (an invalid ID) if it fails.
-   */
+  * Get the user ID from a token.
+  * Returns "" (an invalid ID) if it fails.
+  */
   function getUserIdFromToken(authorizationLine) {
     try {
       // Cut off "Bearer " from the header value.
       var token = authorizationLine.slice(7);
-      // Convert the base64 string to a UTF-8 string.
-      var regularString = new Buffer(token, 'base64').toString('utf8');
-      // Convert the UTF-8 string into a JavaScript object.
-      var tokenObj = JSON.parse(regularString);
+      // Verify the token. Throws if the token is invalid or expired.
+      var tokenObj = jwt.verify(token, secretKey);
       var id = tokenObj['id'];
       // Check that id is a string.
       if (typeof id === 'string') {
         return id;
       } else {
-        // Not a number. Return "", an invalid ID.
+        // Not a string. Return "", an invalid ID.
+        // This should technically be impossible unless
+        // the server accidentally
+        // generates a token with a number for an id!
         return "";
       }
     } catch (e) {
