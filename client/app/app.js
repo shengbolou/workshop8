@@ -8,7 +8,7 @@ import ChatPopup from './components/chatpopup';
 import FeedItem from './components/feeditem';
 import {hideElement} from './util';
 import {searchForFeedItems, deleteFeedItem, login, signup} from './server';
-import {getUserId} from './credentials';
+import {getUserId,isUserLoggedIn} from './credentials';
 import { IndexRoute, Router, Route, hashHistory, Link } from 'react-router'
 import ErrorBanner from './components/errorbanner';
 
@@ -25,21 +25,21 @@ class LandingPage extends React.Component {
       password: ""
     };
   }
-  
+
   handleEmailChange(e) {
     e.preventDefault();
     this.setState({
       email: e.target.value
     });
   }
-  
+
   handlePasswordChange(e) {
     e.preventDefault();
     this.setState({
       password: e.target.value
     });
   }
-  
+
   handleSignIn(e) {
     e.preventDefault();
     this.setState({
@@ -64,7 +64,7 @@ class LandingPage extends React.Component {
       }
     })
   }
-  
+
   render() {
     return (
       <div>
@@ -100,7 +100,7 @@ class SignupPage extends React.Component {
       failedAttempt: false
     };
   }
-  
+
   handleChange(field, e) {
     e.preventDefault();
     var update = {};
@@ -108,7 +108,7 @@ class SignupPage extends React.Component {
     update[field] = e.target.value;
     this.setState(update);
   }
-  
+
   handleSignup(e) {
     e.preventDefault();
     this.setState({
@@ -142,7 +142,7 @@ class SignupPage extends React.Component {
       }
     });
   }
-  
+
   render() {
     return (<div>
       <div className={hideElement(!this.state.failedAttempt) + " alert alert-danger"} role="alert"><strong>Invalid account signup.</strong> It is possible that you already have an account with that particular email address.</div>
@@ -182,10 +182,20 @@ class ProfilePage extends React.Component {
  */
 class FeedPage extends React.Component {
   render() {
-    var userId = getUserId();
-    return <Feed user={userId} />;
+    if(isUserLoggedIn()){
+      var userId = getUserId();
+      return <Feed user={userId} />;
+    }
+    else{
+      this.context.router.push({ pathname: "/" });
+      return null;
+    }
   }
 }
+
+FeedPage.contextTypes = {
+  router: React.PropTypes.object.isRequired
+};
 
 /**
  * Search results page.
@@ -204,7 +214,7 @@ class SearchResultsPage extends React.Component {
     }
     return searchTerm;
   }
-  
+
   render() {
     var searchTerm = this.getSearchTerm();
     // By using the searchTerm as the key, React will create a new
@@ -224,13 +234,13 @@ class SearchResults extends React.Component {
       results: []
     };
   }
-  
+
   deleteFeedItem(id) {
     deleteFeedItem(id, () => {
       this.refresh();
     });
   }
-  
+
   refresh() {
     var searchTerm = this.props.searchTerm;
     if (searchTerm !== "") {
@@ -246,11 +256,11 @@ class SearchResults extends React.Component {
       });
     }
   }
-  
+
   componentDidMount() {
     this.refresh();
   }
-  
+
   render() {
     return (
       <div>
