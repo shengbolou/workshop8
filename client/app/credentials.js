@@ -2,16 +2,15 @@
  * Stores authentication credentials.
  */
 
- var token = null;
- // User document for the currently logged-in user.
  var user = null;
+ var debug = require('react-debug');
 
 /**
  * Get the token of the currently authenticated user.
  */
 export function getToken() {
   if (isUserLoggedIn()) {
-    return token;
+    return localStorage.getItem('token');
   }
   return null;
 }
@@ -40,8 +39,8 @@ export function getUserFullName() {
  * Update the token and user document of the currently authenticated user.
  */
 export function updateCredentials(newUser, newToken) {
-  token = newToken;
-  user = newUser;
+  localStorage.setItem('token', newToken);
+  localStorage.setItem('user', JSON.stringify(newUser));
 }
 
 /**
@@ -50,14 +49,13 @@ export function updateCredentials(newUser, newToken) {
  */
 export function isUserLoggedIn() {
   // Replace later.
-  return user!==null;
+  user = JSON.parse(localStorage.getItem('user'));
+  return user!==null && user!==undefined;
 }
-
 /**
  * Logs the user out.
  * You will implement this during the workshop.
  */
  export function logout() {
-   token = null;
-   user = null;
+   localStorage.clear();
  }

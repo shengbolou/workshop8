@@ -9,16 +9,11 @@ export default class Navbar extends React.Component {
     // User logged out. Redirect to /, which has the signin page.
     this.context.router.push({ pathname: "/" });
   }
-  
+
   render() {
     // Get the user's first name.
     var name = getUserFullName();
-    if (name) {
-      var spaceIdx = name.indexOf(" ");
-      name = name.slice(0, spaceIdx);
-    } else {
-      name = "";
-    }
+
     return (
       <nav className="navbar navbar-default navbar-fixed-top">
        <div className="container">
